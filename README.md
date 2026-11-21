@@ -42,18 +42,23 @@ ones under *Dark Theme*.
 
 `patches/bubble-own-right.patch`: in the Bubble layout, your own messages are
 shown on the right, tinted with the theme's accent, with only the time in the
-group header. Toggle: **Settings → General → Messages → My Messages on the Right**
+group header. Your avatar moves to the right with them, so its membership badge
+(Newly Joined, Name Changed, …) stays visible. Toggle: **Settings → General → Messages → My Messages on the Right**
 (shown when the layout is Bubble; on by default). Pending messages and the thread
 panel follow it; with the toggle off, or in the Modern/Compact layouts, nothing
 changes. Upstream request: [cinnyapp/cinny#1978](https://github.com/cinnyapp/cinny/issues/1978).
 
 | Before (Cinny `dev`) | After |
 |---|---|
-| ![Cinny dev, Bubble layout: everyone on the left](docs/before-dark.png) | ![Own messages on the right](docs/after-dark.png) |
+| ![Cinny dev, Bubble layout: everyone on the left](docs/avatars/before-dark.png) | ![Own messages and avatar on the right](docs/avatars/after-dark.png) |
 
-| Mobile width | Setting |
+| Membership badge on your avatar | Mobile width |
 |---|---|
-| ![Own messages on the right, mobile width](docs/after-mobile.png) | ![The toggle in Settings > General > Messages](docs/setting.png) |
+| ![The "Name Changed" badge tooltip on your own avatar](docs/avatars/badge.png) | ![Own messages on the right, mobile width](docs/avatars/after-mobile.png) |
+
+![The toggle in Settings > General > Messages](docs/setting.png)
+
+The avatars in these screenshots are drawn test pictures, not real people.
 
 ## Build and run
 

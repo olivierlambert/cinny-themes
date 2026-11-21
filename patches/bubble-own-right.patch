@@ -1,5 +1,5 @@
 diff --git a/src/app/components/message/layout/Bubble.tsx b/src/app/components/message/layout/Bubble.tsx
-index 0e2b1702..42720225 100644
+index 0e2b1702..f21100c8 100644
 --- a/src/app/components/message/layout/Bubble.tsx
 +++ b/src/app/components/message/layout/Bubble.tsx
 @@ -14,11 +14,12 @@ import * as css from './layout.css';
@@ -17,27 +17,25 @@ index 0e2b1702..42720225 100644
        width="9"
        height="8"
        viewBox="0 0 9 8"
-@@ -39,13 +40,18 @@ type BubbleLayoutProps = {
+@@ -39,11 +40,16 @@ type BubbleLayoutProps = {
    hideBubble?: boolean;
    before?: ReactNode;
    header?: ReactNode;
 +  /**
-+   * The user's own message: aligned right, tinted, without the `before` content.
-+   * `before` still marks the first message of a group, which gets the arrow.
++   * The user's own message: mirrored. Bubble aligned right and tinted, `before`
++   * (the avatar) in a column on the right, arrow pointing to it.
 +   */
 +  own?: boolean;
  };
  
  export const BubbleLayout = as<'div', BubbleLayoutProps>(
 -  ({ hideBubble, before, header, children, ...props }, ref) => (
+-    <Box gap="300" {...props} ref={ref}>
 +  ({ hideBubble, before, header, own, children, ...props }, ref) => (
-     <Box gap="300" {...props} ref={ref}>
++    <Box gap="300" direction={own ? 'RowReverse' : 'Row'} {...props} ref={ref}>
        <Box className={css.BubbleBefore} shrink="No">
--        {before}
-+        {!own && before}
+         {before}
        </Box>
-       <Box grow="Yes" direction="Column">
-         {header}
 @@ -57,11 +63,17 @@ export const BubbleLayout = as<'div', BubbleLayoutProps>(
                className={
                  hideBubble
@@ -59,7 +57,7 @@ index 0e2b1702..42720225 100644
              </Box>
            </Box>
 diff --git a/src/app/components/message/layout/layout.css.ts b/src/app/components/message/layout/layout.css.ts
-index 707b4fa4..61734f14 100644
+index 707b4fa4..4a2e5794 100644
 --- a/src/app/components/message/layout/layout.css.ts
 +++ b/src/app/components/message/layout/layout.css.ts
 @@ -7,7 +7,7 @@ https://cinny.in
@@ -71,7 +69,7 @@ index 707b4fa4..61734f14 100644
  import { recipe, RecipeVariants } from '@vanilla-extract/recipes';
  import { DefaultReset, color, config, toRem } from 'folds';
  
-@@ -160,6 +160,24 @@ export const BubbleContentArrowLeft = style({
+@@ -160,6 +160,22 @@ export const BubbleContentArrowLeft = style({
    borderTopLeftRadius: 0,
  });
  
@@ -85,8 +83,6 @@ index 707b4fa4..61734f14 100644
 +  // auto margin rather than justify-content: too-wide content overflows to
 +  // the right (scrollable) instead of being clipped on the left
 +  marginLeft: 'auto',
-+  // room for the arrow, which sticks out 8px on the right
-+  marginRight: toRem(8),
 +});
 +
 +export const BubbleContentArrowRight = style({
@@ -96,7 +92,7 @@ index 707b4fa4..61734f14 100644
  export const BubbleLeftArrow = style({
    width: toRem(9),
    height: toRem(8),
-@@ -170,6 +188,22 @@ export const BubbleLeftArrow = style({
+@@ -170,6 +186,22 @@ export const BubbleLeftArrow = style({
    zIndex: 1,
  });
  
