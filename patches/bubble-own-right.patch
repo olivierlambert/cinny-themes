@@ -1,0 +1,259 @@
+diff --git a/src/app/components/message/layout/Bubble.tsx b/src/app/components/message/layout/Bubble.tsx
+index 0e2b1702..42720225 100644
+--- a/src/app/components/message/layout/Bubble.tsx
++++ b/src/app/components/message/layout/Bubble.tsx
+@@ -14,11 +14,12 @@ import * as css from './layout.css';
+ 
+ type BubbleArrowProps = {
+   variant: ContainerColor;
++  side?: 'left' | 'right';
+ };
+-function BubbleLeftArrow({ variant }: BubbleArrowProps) {
++function BubbleArrow({ variant, side = 'left' }: BubbleArrowProps) {
+   return (
+     <svg
+-      className={css.BubbleLeftArrow}
++      className={side === 'right' ? css.BubbleRightArrow : css.BubbleLeftArrow}
+       width="9"
+       height="8"
+       viewBox="0 0 9 8"
+@@ -39,13 +40,18 @@ type BubbleLayoutProps = {
+   hideBubble?: boolean;
+   before?: ReactNode;
+   header?: ReactNode;
++  /**
++   * The user's own message: aligned right, tinted, without the `before` content.
++   * `before` still marks the first message of a group, which gets the arrow.
++   */
++  own?: boolean;
+ };
+ 
+ export const BubbleLayout = as<'div', BubbleLayoutProps>(
+-  ({ hideBubble, before, header, children, ...props }, ref) => (
++  ({ hideBubble, before, header, own, children, ...props }, ref) => (
+     <Box gap="300" {...props} ref={ref}>
+       <Box className={css.BubbleBefore} shrink="No">
+-        {before}
++        {!own && before}
+       </Box>
+       <Box grow="Yes" direction="Column">
+         {header}
+@@ -57,11 +63,17 @@ export const BubbleLayout = as<'div', BubbleLayoutProps>(
+               className={
+                 hideBubble
+                   ? undefined
+-                  : classNames(css.BubbleContent, before ? css.BubbleContentArrowLeft : undefined)
++                  : classNames(
++                      css.BubbleContent,
++                      own && css.BubbleContentOwn,
++                      before && (own ? css.BubbleContentArrowRight : css.BubbleContentArrowLeft)
++                    )
+               }
+               direction="Column"
+             >
+-              {before ? <BubbleLeftArrow variant="SurfaceVariant" /> : null}
++              {before ? (
++                <BubbleArrow variant="SurfaceVariant" side={own ? 'right' : 'left'} />
++              ) : null}
+               {children}
+             </Box>
+           </Box>
+diff --git a/src/app/components/message/layout/layout.css.ts b/src/app/components/message/layout/layout.css.ts
+index 707b4fa4..61734f14 100644
+--- a/src/app/components/message/layout/layout.css.ts
++++ b/src/app/components/message/layout/layout.css.ts
+@@ -7,7 +7,7 @@ https://cinny.in
+ Please see LICENSE file in root of repository for full details.
+ */
+ 
+-import { createVar, keyframes, style, styleVariants } from '@vanilla-extract/css';
++import { createVar, globalStyle, keyframes, style, styleVariants } from '@vanilla-extract/css';
+ import { recipe, RecipeVariants } from '@vanilla-extract/recipes';
+ import { DefaultReset, color, config, toRem } from 'folds';
+ 
+@@ -160,6 +160,24 @@ export const BubbleContentArrowLeft = style({
+   borderTopLeftRadius: 0,
+ });
+ 
++// Own bubbles: a tint of the accent rather than the accent itself, so mention
++// pills, pressed reactions and the jump-to highlight (all Primary.Container)
++// stay visible on them. Text keeps the normal bubble colour.
++const OwnBubbleColor = `color-mix(in srgb, ${color.Primary.Container} 60%, ${color.SurfaceVariant.Container})`;
++
++export const BubbleContentOwn = style({
++  backgroundColor: OwnBubbleColor,
++  // auto margin rather than justify-content: too-wide content overflows to
++  // the right (scrollable) instead of being clipped on the left
++  marginLeft: 'auto',
++  // room for the arrow, which sticks out 8px on the right
++  marginRight: toRem(8),
++});
++
++export const BubbleContentArrowRight = style({
++  borderTopRightRadius: 0,
++});
++
+ export const BubbleLeftArrow = style({
+   width: toRem(9),
+   height: toRem(8),
+@@ -170,6 +188,22 @@ export const BubbleLeftArrow = style({
+   zIndex: 1,
+ });
+ 
++export const BubbleRightArrow = style({
++  width: toRem(9),
++  height: toRem(8),
++
++  position: 'absolute',
++  top: 0,
++  right: toRem(-8),
++  zIndex: 1,
++  transform: 'scaleX(-1)',
++});
++
++// CSS beats the path's fill attribute
++globalStyle(`${BubbleRightArrow} path`, {
++  fill: OwnBubbleColor,
++});
++
+ export const Username = style({
+   overflow: 'hidden',
+   whiteSpace: 'nowrap',
+diff --git a/src/app/features/room/OutboxView.tsx b/src/app/features/room/OutboxView.tsx
+index f481bbb0..d90ae7ef 100644
+--- a/src/app/features/room/OutboxView.tsx
++++ b/src/app/features/room/OutboxView.tsx
+@@ -203,6 +203,7 @@ function MessageSending({
+         }
+         collapse={collapse}
+         messageLayout={messageLayout}
++        own
+       >
+         {children}
+         {senderState instanceof EventSenderError && (
+diff --git a/src/app/features/room/message/Message.tsx b/src/app/features/room/message/Message.tsx
+index b8d1d663..e9b6f75a 100644
+--- a/src/app/features/room/message/Message.tsx
++++ b/src/app/features/room/message/Message.tsx
+@@ -96,6 +96,7 @@ import { MemberChangeType, RoomMembersAPI } from '../../../hooks/useRoomMembers'
+ import { useRoomCreators } from '../../../hooks/useRoomCreators';
+ import { usePowerLevelsContext } from '../../../hooks/usePowerLevels';
+ import { useCanMessage } from '../hooks/useCanMessage';
++import { useSetting } from '../../../state/hooks/settings';
+ 
+ export type ReactionHandler = (keyOrMxc: string, shortcode: string) => void;
+ 
+@@ -921,27 +922,34 @@ type MessageLayoutProps = {
+   time?: ReactNode;
+   collapse: boolean;
+   messageLayout: MessageLayout;
++  /** Sent by the logged-in user. */
++  own?: boolean;
+   onContextMenu?: MouseEventHandler<HTMLDivElement>;
+   children: ReactNode;
+ };
+ export function RenderMessageLayout({
+   collapse,
+   messageLayout,
++  own,
+   avatar,
+   username,
+   time,
+   onContextMenu,
+   children,
+ }: MessageLayoutProps) {
++  const [bubbleOwnRight] = useSetting('bubbleOwnRight');
++  // Settings saved before this option existed have no value: treat as enabled.
++  const ownBubble = !!own && messageLayout === MessageLayout.Bubble && bubbleOwnRight !== false;
++
+   const headerJSX = !collapse && (
+     <Box
+       gap="300"
+       direction={messageLayout === MessageLayout.Compact ? 'RowReverse' : 'Row'}
+-      justifyContent="SpaceBetween"
++      justifyContent={ownBubble ? 'End' : 'SpaceBetween'}
+       alignItems="Baseline"
+       grow="Yes"
+     >
+-      {username}
++      {!ownBubble && username}
+       <Box shrink="No" gap="100">
+         {time}
+       </Box>
+@@ -956,7 +964,12 @@ export function RenderMessageLayout({
+         </CompactLayout>
+       )}
+       {messageLayout === MessageLayout.Bubble && (
+-        <BubbleLayout before={avatar} header={headerJSX} onContextMenu={onContextMenu}>
++        <BubbleLayout
++          own={ownBubble}
++          before={avatar}
++          header={headerJSX}
++          onContextMenu={onContextMenu}
++        >
+           {children}
+         </BubbleLayout>
+       )}
+@@ -1449,6 +1462,7 @@ export const Message = as<'div', MessageProps>(
+           }
+           collapse={collapse}
+           messageLayout={messageLayout}
++          own={senderId === ct.session.userId}
+           onContextMenu={handleContextMenu}
+         >
+           <Box direction="Column" alignSelf="Start" style={{ maxWidth: '100%' }}>
+diff --git a/src/app/features/settings/general/General.tsx b/src/app/features/settings/general/General.tsx
+index 548e0ef8..a6d19179 100644
+--- a/src/app/features/settings/general/General.tsx
++++ b/src/app/features/settings/general/General.tsx
+@@ -916,6 +916,8 @@ function SelectMessageSpacing() {
+ }
+ 
+ function Messages() {
++  const [messageLayout] = useSetting('messageLayout');
++  const [bubbleOwnRight, setBubbleOwnRight] = useSetting('bubbleOwnRight');
+   const [legacyUsernameColor, setLegacyUsernameColor] = useSetting('legacyUsernameColor');
+   const [hideMembershipEvents, setHideMembershipEvents] = useSetting('hideMembershipEvents');
+   const [hideNickAvatarEvents, setHideNickAvatarEvents] = useSetting('hideNickAvatarEvents');
+@@ -930,6 +932,21 @@ function Messages() {
+       <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
+         <SettingTile title="Message Layout" after={<SelectMessageLayout />} />
+       </SequenceCard>
++      {messageLayout === MessageLayout.Bubble && (
++        <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
++          <SettingTile
++            title="My Messages on the Right"
++            description="Show your own messages on the right side, tinted with the accent color."
++            after={
++              <Switch
++                variant="Primary"
++                value={bubbleOwnRight !== false}
++                onChange={setBubbleOwnRight}
++              />
++            }
++          />
++        </SequenceCard>
++      )}
+       <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
+         <SettingTile title="Message Spacing" after={<SelectMessageSpacing />} />
+       </SequenceCard>
+diff --git a/src/app/state/settings.ts b/src/app/state/settings.ts
+index 390c350d..794f894e 100644
+--- a/src/app/state/settings.ts
++++ b/src/app/state/settings.ts
+@@ -43,6 +43,7 @@ export interface Settings {
+   memberSortFilterIndex: number;
+   enterForNewline: boolean;
+   messageLayout: MessageLayout;
++  bubbleOwnRight?: boolean;
+   messageSpacing: MessageSpacing;
+   hideMembershipEvents: boolean;
+   hideNickAvatarEvents: boolean;
+@@ -79,6 +80,7 @@ const defaultSettings: Settings = {
+   memberSortFilterIndex: 0,
+   enterForNewline: false,
+   messageLayout: 0,
++  bubbleOwnRight: true,
+   messageSpacing: '400',
+   hideMembershipEvents: false,
+   hideNickAvatarEvents: true,

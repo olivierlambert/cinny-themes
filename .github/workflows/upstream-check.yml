@@ -1,0 +1,76 @@
+# Builds Cinny's dev branch with these add-ons, exactly as the Dockerfile does
+# (minus Docker), so a change upstream that breaks a patch shows up here first.
+name: Upstream check
+
+on:
+  schedule:
+    - cron: '17 5 * * *' # daily
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: Cinny ref to build (branch, tag or full SHA)
+        default: dev
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout add-ons
+        uses: actions/checkout@v4
+        with:
+          path: addons
+
+      - name: Checkout Cinny
+        uses: actions/checkout@v4
+        with:
+          repository: cinnyapp/cinny
+          ref: ${{ inputs.ref || 'dev' }}
+          path: cinny
+
+      - name: Cinny commit
+        run: git -C cinny log -1 --format='Cinny %h %cd %s' >> "$GITHUB_STEP_SUMMARY"
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: cinny/.node-version
+
+      - name: Theme contrast
+        run: node addons/check-themes.mjs
+
+      - name: Install
+        working-directory: cinny
+        run: npm ci
+
+      - name: Add themes
+        run: |
+          cp addons/themes/* cinny/src/
+          node addons/patch-cinny.mjs cinny
+
+      - name: Apply patches
+        working-directory: cinny
+        run: |
+          for p in ../addons/patches/*.patch; do
+            echo "applying $p"
+            patch -p1 --forward --fuzz=0 --no-backup-if-mismatch < "$p"
+          done
+
+      - name: Build
+        working-directory: cinny
+        env:
+          NODE_OPTIONS: --max_old_space_size=4096
+        run: npm run build
+
+      - name: Add-ons present in the bundle
+        working-directory: cinny
+        run: |
+          grep -rlq vates-dark-theme dist/assets
+          grep -rlq oled-black-theme dist/assets
+          grep -rlq bubbleOwnRight dist/assets
+          echo "Build OK with all add-ons" >> "$GITHUB_STEP_SUMMARY"
