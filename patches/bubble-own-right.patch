@@ -57,7 +57,7 @@ index 0e2b1702..f21100c8 100644
              </Box>
            </Box>
 diff --git a/src/app/components/message/layout/layout.css.ts b/src/app/components/message/layout/layout.css.ts
-index 707b4fa4..4a2e5794 100644
+index 707b4fa4..af143e53 100644
 --- a/src/app/components/message/layout/layout.css.ts
 +++ b/src/app/components/message/layout/layout.css.ts
 @@ -7,7 +7,7 @@ https://cinny.in
@@ -69,14 +69,13 @@ index 707b4fa4..4a2e5794 100644
  import { recipe, RecipeVariants } from '@vanilla-extract/recipes';
  import { DefaultReset, color, config, toRem } from 'folds';
  
-@@ -160,6 +160,22 @@ export const BubbleContentArrowLeft = style({
+@@ -160,6 +160,21 @@ export const BubbleContentArrowLeft = style({
    borderTopLeftRadius: 0,
  });
  
-+// Own bubbles: a tint of the accent rather than the accent itself, so mention
-+// pills, pressed reactions and the jump-to highlight (all Primary.Container)
-+// stay visible on them. Text keeps the normal bubble colour.
-+const OwnBubbleColor = `color-mix(in srgb, ${color.Primary.Container} 60%, ${color.SurfaceVariant.Container})`;
++// Own bubbles: a neutral shade next to the normal bubble, not the accent,
++// which mentions and pings use.
++const OwnBubbleColor = color.Secondary.ContainerHover;
 +
 +export const BubbleContentOwn = style({
 +  backgroundColor: OwnBubbleColor,
@@ -92,7 +91,7 @@ index 707b4fa4..4a2e5794 100644
  export const BubbleLeftArrow = style({
    width: toRem(9),
    height: toRem(8),
-@@ -170,6 +186,22 @@ export const BubbleLeftArrow = style({
+@@ -170,6 +185,22 @@ export const BubbleLeftArrow = style({
    zIndex: 1,
  });
  
@@ -199,7 +198,7 @@ index b8d1d663..e9b6f75a 100644
          >
            <Box direction="Column" alignSelf="Start" style={{ maxWidth: '100%' }}>
 diff --git a/src/app/features/settings/general/General.tsx b/src/app/features/settings/general/General.tsx
-index 548e0ef8..a6d19179 100644
+index 548e0ef8..25b6b82f 100644
 --- a/src/app/features/settings/general/General.tsx
 +++ b/src/app/features/settings/general/General.tsx
 @@ -916,6 +916,8 @@ function SelectMessageSpacing() {
@@ -219,7 +218,7 @@ index 548e0ef8..a6d19179 100644
 +        <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
 +          <SettingTile
 +            title="My Messages on the Right"
-+            description="Show your own messages on the right side, tinted with the accent color."
++            description="Show your own messages on the right side, in a different shade."
 +            after={
 +              <Switch
 +                variant="Primary"
